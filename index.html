@@ -47,6 +47,15 @@
         .gradient-header {
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #059669 100%);
         }
+        
+        /* 추가: 좁은 화면에서 헤더가 가로 스크롤될 때 스크롤바 숨김 처리 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
     </style>
 </head>
 <!--
@@ -86,13 +95,14 @@
 
     <!-- Sticky Navigation Header -->
     <header class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur text-white shadow-md border-b border-slate-800">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-            <div class="flex items-center space-x-3">
+        <!-- whitespace-nowrap 추가로 텍스트 줄바꿈 방지, 화면이 좁을 경우 가로 스크롤 허용 -->
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center overflow-x-auto no-scrollbar whitespace-nowrap">
+            <div class="flex items-center space-x-2 md:space-x-3 shrink-0">
                 <span class="text-2xl">🏦</span>
-                <span class="font-bold text-lg tracking-tight text-emerald-400">MG 새마을금고</span>
-                <span class="text-xs bg-blue-600/80 px-2 py-0.5 rounded text-white font-medium hidden sm:inline">신상품 기획 보고서</span>
+                <span class="font-bold text-base md:text-lg tracking-tight text-emerald-400">MG 새마을금고</span>
+                <span class="text-[11px] md:text-xs bg-blue-600/80 px-2 py-0.5 rounded text-white font-medium hidden sm:inline">신상품 기획 보고서</span>
             </div>
-            <nav class="hidden md:flex space-x-6 text-sm font-medium text-slate-300">
+            <nav class="hidden md:flex space-x-4 lg:space-x-6 text-sm font-medium text-slate-300 mx-4 shrink-0">
                 <a href="#overview" class="hover:text-emerald-400 transition-colors">기획 요약</a>
                 <a href="#background" class="hover:text-emerald-400 transition-colors">배경 & 금리</a>
                 <a href="#targets" class="hover:text-emerald-400 transition-colors">타깃 & 대안평가</a>
@@ -100,7 +110,7 @@
                 <a href="#ecosystem" class="hover:text-emerald-400 transition-colors">생태계 & 리스크</a>
                 <a href="#impact" class="hover:text-emerald-400 transition-colors">기대효과</a>
             </nav>
-            <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-3 shrink-0">
                 <div class="hidden lg:block text-xs text-slate-400">2026.09.03 | 대외비</div>
                 <a href="https://kfcc014-ai.github.io/mg0903/cal.html" target="_blank" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-1.5 px-3 rounded-full flex items-center transition-colors shadow-sm">
                     <span class="mr-1">🧮</span> 계산기
@@ -501,4 +511,240 @@
         </div>
     </footer>
 
-    <!-- Chart.js Scripts
+    <!-- Chart.js Scripts Initialization -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // Global Chart Defaults
+            Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+            Chart.defaults.color = '#475569';
+
+            // Shared Tooltip Callback Function for Multi-line Label Handling
+            const globalTooltipCallback = {
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const item = tooltipItems[0];
+                                let label = item.chart.data.labels[item.dataIndex];
+                                if (Array.isArray(label)) {
+                                    return label.join(' ');
+                                } else {
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+
+            // -------------------------------------------------------------
+            // Visual 1: Interest Rate Burden Comparison (Grouped Bar)
+            // Label Wrapping > 16 characters handling
+            // -------------------------------------------------------------
+            const ctx1 = document.getElementById('interestComparisonChart').getContext('2d');
+            const rawLabels1 = ['대출 2,000만 원', '대출 3,000만 원', '대출 4,000만 원', '대출 5,000만 원'];
+            const processedLabels1 = rawLabels1.map(l => l.length > 16 ? [l.slice(0, 16), l.slice(16)] : l);
+
+            new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: processedLabels1,
+                    datasets: [
+                        {
+                            label: '시중은행 일반대출 (연 6.5%)',
+                            data: [130, 195, 260, 325],
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'MG 상생 희망드림 (실질 연 2.5%)',
+                            data: [50, 75, 100, 125],
+                            backgroundColor: '#2563eb',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '연간 이자 (만 원)',
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        ...globalTooltipCallback.plugins,
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+
+            // -------------------------------------------------------------
+            // Visual 2: Alternative Credit Evaluation Weights (Radar Chart)
+            // Label Wrapping > 16 characters handling
+            // -------------------------------------------------------------
+            const ctx2 = document.getElementById('creditRadarChart').getContext('2d');
+            const rawLabels2 = [
+                '지역화폐 결제실적',
+                '사업장 가동기간',
+                '공과금 성실납부',
+                '기존 개인신용평점',
+                'MG더뱅킹 이용도'
+            ];
+            const processedLabels2 = rawLabels2.map(l => l.length > 16 ? [l.slice(0, 16), l.slice(16)] : l);
+
+            new Chart(ctx2, {
+                type: 'radar',
+                data: {
+                    labels: processedLabels2,
+                    datasets: [{
+                        label: '평가 반영 가중치 (%)',
+                        data: [30, 25, 25, 20, 15],
+                        backgroundColor: 'rgba(37, 99, 235, 0.25)',
+                        borderColor: '#2563eb',
+                        pointBackgroundColor: '#059669',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#059669'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: '#cbd5e1' },
+                            grid: { color: '#94a3b8' },
+                            pointLabels: {
+                                color: '#0f172a',
+                                font: { size: 12, weight: 'bold' }
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 35,
+                            ticks: { display: false }
+                        }
+                    },
+                    plugins: {
+                        ...globalTooltipCallback.plugins,
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 12, weight: 'bold' }, color: '#0f172a' }
+                        }
+                    }
+                }
+            });
+
+            // -------------------------------------------------------------
+            // Visual 3: Preferential Rate Discount Factors (Horizontal Bar)
+            // Label Wrapping > 16 characters handling
+            // -------------------------------------------------------------
+            const ctx3 = document.getElementById('preferentialRateChart').getContext('2d');
+            const rawLabels3 = [
+                'MG체크/PG 매출 입금계좌 지정',
+                '지자체 지역화폐 가맹점 등록',
+                '당고 ESG 특화 적금/공제 가입',
+                'MG더뱅킹 로그인 & PUSH 동의'
+            ];
+            // Apply line wrap logic for > 16 chars
+            const processedLabels3 = [
+                ['MG체크/PG 매출', '입금계좌 지정 (0.3%p)'],
+                ['지자체 지역화폐', '가맹점 등록 (0.2%p)'],
+                ['당고 ESG 특화', '적금/공제 가입 (0.2%p)'],
+                ['MG더뱅킹 로그인', '& PUSH 동의 (0.3%p)']
+            ];
+
+            new Chart(ctx3, {
+                type: 'bar',
+                indexAxis: 'y',
+                data: {
+                    labels: processedLabels3,
+                    datasets: [{
+                        label: '우대 금리 폭 (%p)',
+                        data: [0.3, 0.2, 0.2, 0.3],
+                        backgroundColor: ['#2563eb', '#0d9488', '#059669', '#d97706'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 0.4,
+                            ticks: {
+                                stepSize: 0.1,
+                                callback: function(value) { return value + '%p'; }
+                            }
+                        }
+                    },
+                    plugins: {
+                        ...globalTooltipCallback.plugins,
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            // -------------------------------------------------------------
+            // Visual 4: Expected Impact Projections (Area/Line Chart)
+            // Label Wrapping > 16 characters handling
+            // -------------------------------------------------------------
+            const ctx4 = document.getElementById('impactProjectionChart').getContext('2d');
+            const rawLabels4 = ['2026 Q4 (출시)', '2027 Q2', '2027 Q4', '2028 Q2', '2028 Q4'];
+            const processedLabels4 = rawLabels4.map(l => l.length > 16 ? [l.slice(0, 16), l.slice(16)] : l);
+
+            new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: processedLabels4,
+                    datasets: [
+                        {
+                            label: '누적 대출 공급액 (억 원)',
+                            data: [300, 1200, 2500, 3800, 5000],
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.15)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: '유입 저원가성 수신 (억 원)',
+                            data: [150, 600, 1400, 2200, 3000],
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: '금액 (억 원)', font: { size: 11 } }
+                        }
+                    },
+                    plugins: {
+                        ...globalTooltipCallback.plugins,
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: 11 } }
+                        }
+                    }
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>
